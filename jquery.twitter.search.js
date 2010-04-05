@@ -2,7 +2,7 @@
  * jQuery Twitter Search Plugin
  * Examples and documentation at: http://jquery.malsup.com/twitter/
  * Copyright (c) 2010 M. Alsup
- * Version: 1.00 (04-APR-2010)
+ * Version: 1.00 (05-APR-2010)
  * Dual licensed under the MIT and GPL licenses:
  * http://www.opensource.org/licenses/mit-license.php
  * http://www.gnu.org/licenses/gpl.html
@@ -13,23 +13,49 @@
 		if (typeof options == 'string')
 			options = { term: options };
 		return this.each(function() {
-			var cont = this, $this = $(this);
-			$this.css({ overflow: 'hidden' });
+			var $this = $(this);
 			var opts = $.extend(true, {}, $.fn.twitterSearch.defaults, options || {}, $.metadata ? $this.metadata() : {});
 			opts.formatter = opts.formatter || $.fn.twitterSearch.formatter; 
 			var url = opts.url + opts.term;
-			var err = false;
+			
+			if (!opts.applyStyles) {
+				for (var css in opts.css)
+					opts.css[css] = {};
+			}
+			
+			if (opts.title === null) // user can set to '' to suppress title
+				opts.title = opts.term;
+
+			opts.title = opts.title || '';
+			var t = opts.titleLink ? ('<a href="'+ opts.titleLink +'">'+ opts.title + '</a>') : ('<span>' + opts.title + '</span>');
+			var $t = $(t);
+			if (opts.titleLink)
+				$t.css(opts.css['titleLink']);
+			var $title = $('<div class="twitterSearchTitle"></div>').append($t).appendTo($this).css(opts.css['title']);
+			if (opts.bird)
+				$('<img class="twitterSearchBird" src="'+opts.birdLink+'" />').appendTo($title).css(opts.css['bird']);
+			var $cont = $('<div class="twitterSearchContainter"></div>').appendTo($this).css(opts.css['container']);
+			var cont = $cont[0];
+			if (opts.colorExterior)
+				$title.css('background-color',opts.colorExterior);
+			if (opts.colorInterior)
+				$cont.css('background-color',opts.colorInterior);
+			
+			var h = $this.innerHeight() - $title.outerHeight();
+			$cont.height(h);
 			
 			if (opts.pause)
-				$this.hover(function(){this.twitterSearchPause = true;},function(){this.twitterSearchPause = false;});
+				$cont.hover(function(){cont.twitterSearchPause = true;},function(){cont.twitterSearchPause = false;});
+			
+			$('<div>Loading tweets..</div>').css(opts.css['loading']).appendTo($cont);
 			
 			// grab twitter stream
 			$.getJSON(url, function(json) {
 				if (json.error) {
-					err = true;
-					$this.text(json.error);
+					$cont.text(json.error);
 					return;
 				}
+				$cont.empty();
 				// iterate twitter results 
 				$.each(json.results, function(i) {
 					var tweet = opts.formatter(this, opts), $tweet = $(tweet);
@@ -38,34 +64,39 @@
 					$tweet.find('.twitterSearchUser').css(opts.css['user']);
 					$tweet.find('.twitterSearchTime').css(opts.css['time']);
 					$tweet.find('a').css(opts.css['a']);
-					$tweet.appendTo($this);
+					$tweet.appendTo($cont);
 					var $text = $tweet.find('.twitterSearchText').css(opts.css['text']);
 					if (opts.avatar) {
 						var w = $img.outerWidth() + parseInt($tweet.css('paddingLeft'));
 						$text.css('paddingLeft', w);
 					}
 				});
-			});
-			
-			if (err)
-				return;
+				
+				// start the animation
+				if (json.results.length < 2)
+					return;
 
-			// start the animation
-			setTimeout(go, opts.timeout);
+				$this.css(opts.css['frame']);
+				if (opts.colorExterior)
+					$this.css('border-color',opts.colorExterior);
+				setTimeout(go, opts.timeout);
+			});
 
 			function go() {
 				if (cont.twitterSearchPause) {
 					setTimeout(go, 500);
 					return;
 				}
-				var $el = $this.children(':first');
+				var $el = $cont.children(':first'), el = $el[0];
 				$el.animate(opts.animOut, opts.animOutSpeed, function() {
 					var h = $el.outerHeight();
 					$el.animate({ marginTop: -h }, opts.animInSpeed, function() {
-						$el.css({
-							marginTop: 0,
-							opacity: 1
-						}).css(opts.css['tweet']).show().appendTo($this);
+						$el.css({ marginTop: 0,	opacity: 1 });
+						/*@cc_on
+						try { el.style.removeAttribute('filter'); } // ie cleartype fix
+						catch(smother) {}
+						@*/
+						$el.css(opts.css['tweet']).show().appendTo($cont);
 					});
 					// stage next animation
 					setTimeout(go, opts.timeout);					
@@ -80,7 +111,7 @@
 			t = json.text.replace(/(http:\/\/\S+)/g, '<a href="$1">$1</a>');
 			t = t.replace(/\@(\w+)/g, '<a href="http://twitter.com/$1">@$1</a>');
 		}
-		var s = '<div class="'+opts.tweetClass+'">';
+		var s = '<div class="twitterSearchTweet">';
 		if (opts.avatar)
 			s += '<img class="twitterSearchProfileImg" src="' + json.profile_image_url + '" />';
 		s += '<div><span class="twitterSearchUser"><a href="http://www.twitter.com/'+ json.from_user+'/status/'+ json.id +'">' 
@@ -93,24 +124,37 @@
 	
 	$.fn.twitterSearch.defaults = {
 		url: 'http://search.twitter.com/search.json?callback=?&q=',
-		term: '',
-		tweetClass: 'tweet',
-		avatar: true,
-		anchors: true,
-		animOutSpeed: 300,
-		animInSpeed: 300,
-		animOut: { opacity: 0 },
-		formatter: null,
-		pause: false,
-		time: true,
-		timeout: 4000,
+		anchors: true,				// true or false (enable embedded links in tweets)
+		animOutSpeed: 500,			// speed of animation for top tweet when removed
+		animInSpeed: 500,			// speed of scroll animation for moving tweets up
+		animOut: { opacity: 0 },	// animation of top tweet when it is removed
+		applyStyles: true,			// true or false (apply default css styling or not)
+		avatar: true,				// true or false (show or hide twitter profile images)
+		bird: true,					// true or false (show or hide twitter bird image)
+		birdLink: 'http://cloud.github.com/downloads/malsup/twitter/tweet.gif', // twitter bird image
+		colorExterior: null,        // css override of frame border-color and title background-color
+		colorInterior: null,        // css override of container background-color
+		formatter: null,			// callback fn to build tweet markup
+		pause: false,				// true or false (pause on hover)
+		term: '',					// twitter search term
+		time: true,					// true or false (show or hide the time that the tweet was sent)
+		timeout: 4000,				// delay betweet tweet scroll
+		title: null,				// title text to display when frame option is true (default = 'term' text)
+		titleLink: null,			// url for title link
 		css: {
+			// default styling
+			a:     { textDecoration: 'none', color: '#3B5998' },
+			container: { overflow: 'hidden', backgroundColor: '#eee', height: '100%' },
+			bird: { width: '50px', height: '20px', position: 'absolute', left: '-30px', top: '-20px' },
+			frame: { border: '10px solid #C2CFF1', borderRadius: '10px', '-moz-border-radius': '10px', '-webkit-border-radius': '10px' },
 			tweet: { padding: '5px 10px', clear: 'left' },
 			img:   { float: 'left', margin: '5px', width: '48px', height: '48px' },
-			user:  { fontWeight: 'bold' },
-			time:  { fontSize: 'smaller' },
+			loading: { padding: '20px', textAlign: 'center', color: '#888' },
 			text:  {},
-			a:     { textDecoration: 'none' }
+			time:  { fontSize: 'smaller', color: '#888' },
+			title: { backgroundColor: '#C2CFF1', margin: 0, padding: '0 0 5px 0', textAlign: 'center', fontWeight: 'bold', fontSize: 'large', position: 'relative' },
+			titleLink: { textDecoration: 'none', color: '#3B5998' },
+			user:  { fontWeight: 'bold' }
 		}
 	};
 	
