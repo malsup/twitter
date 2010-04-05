@@ -13,12 +13,12 @@
 		if (typeof options == 'string')
 			options = { term: options };
 		return this.each(function() {
-			var $this = $(this);
-			var opts = $.extend(true, {}, $.fn.twitterSearch.defaults, options || {}, $.metadata ? $this.metadata() : {});
+			var $frame = $(this);
+			var opts = $.extend(true, {}, $.fn.twitterSearch.defaults, options || {}, $.metadata ? $frame.metadata() : {});
 			opts.formatter = opts.formatter || $.fn.twitterSearch.formatter; 
 			var url = opts.url + opts.term;
 			
-			if (!opts.applyStyles) {
+			if (!opts.applyStyles) { // throw away all style defs
 				for (var css in opts.css)
 					opts.css[css] = {};
 			}
@@ -31,23 +31,30 @@
 			var $t = $(t);
 			if (opts.titleLink)
 				$t.css(opts.css['titleLink']);
-			var $title = $('<div class="twitterSearchTitle"></div>').append($t).appendTo($this).css(opts.css['title']);
-			if (opts.bird)
-				$('<img class="twitterSearchBird" src="'+opts.birdLink+'" />').appendTo($title).css(opts.css['bird']);
-			var $cont = $('<div class="twitterSearchContainter"></div>').appendTo($this).css(opts.css['container']);
+			var $title = $('<div class="twitterSearchTitle"></div>').append($t).appendTo($frame).css(opts.css['title']);
+			if (opts.bird) {
+				var $b = $('<img class="twitterSearchBird" src="'+opts.birdSrc+'" />').appendTo($title).css(opts.css['bird']);
+				if (opts.birdLink)
+					$b.wrap('<a href="'+ opts.birdLink +'"></a>');
+			}
+			var $cont = $('<div class="twitterSearchContainter"></div>').appendTo($frame).css(opts.css['container']);
 			var cont = $cont[0];
 			if (opts.colorExterior)
 				$title.css('background-color',opts.colorExterior);
 			if (opts.colorInterior)
 				$cont.css('background-color',opts.colorInterior);
 			
-			var h = $this.innerHeight() - $title.outerHeight();
+			$frame.css(opts.css['frame']);
+			if (opts.colorExterior)
+				$frame.css('border-color',opts.colorExterior);
+			
+			var h = $frame.innerHeight() - $title.outerHeight();
 			$cont.height(h);
 			
 			if (opts.pause)
 				$cont.hover(function(){cont.twitterSearchPause = true;},function(){cont.twitterSearchPause = false;});
 			
-			$('<div>Loading tweets..</div>').css(opts.css['loading']).appendTo($cont);
+			$('<div class="twitterSearchLoading">Loading tweets..</div>').css(opts.css['loading']).appendTo($cont);
 			
 			// grab twitter stream
 			$.getJSON(url, function(json) {
@@ -72,13 +79,10 @@
 					}
 				});
 				
-				// start the animation
 				if (json.results.length < 2)
 					return;
 
-				$this.css(opts.css['frame']);
-				if (opts.colorExterior)
-					$this.css('border-color',opts.colorExterior);
+				// stage first animation
 				setTimeout(go, opts.timeout);
 			});
 
@@ -116,8 +120,9 @@
 			s += '<img class="twitterSearchProfileImg" src="' + json.profile_image_url + '" />';
 		s += '<div><span class="twitterSearchUser"><a href="http://www.twitter.com/'+ json.from_user+'/status/'+ json.id +'">' 
 		  + json.from_user + '</a></span>';
-		if (opts.time)
-			s += ' <span class="twitterSearchTime">('+ prettyDate(json.created_at) +')</span>'
+		var d = prettyDate(json.created_at);
+		if (opts.time && d)
+			s += ' <span class="twitterSearchTime">('+ d +')</span>'
 		 s += '<div class="twitterSearchText">' + t + '</div></div></div>';
 		 return s;
 	};
@@ -131,7 +136,8 @@
 		applyStyles: true,			// true or false (apply default css styling or not)
 		avatar: true,				// true or false (show or hide twitter profile images)
 		bird: true,					// true or false (show or hide twitter bird image)
-		birdLink: 'http://cloud.github.com/downloads/malsup/twitter/tweet.gif', // twitter bird image
+		birdLink: false,			// url that twitter bird image should like to
+		birdSrc: 'http://cloud.github.com/downloads/malsup/twitter/tweet.gif', // twitter bird image
 		colorExterior: null,        // css override of frame border-color and title background-color
 		colorInterior: null,        // css override of container background-color
 		formatter: null,			// callback fn to build tweet markup
@@ -144,8 +150,8 @@
 		css: {
 			// default styling
 			a:     { textDecoration: 'none', color: '#3B5998' },
+			bird:  { width: '50px', height: '20px', position: 'absolute', left: '-30px', top: '-20px', border: 'none' },
 			container: { overflow: 'hidden', backgroundColor: '#eee', height: '100%' },
-			bird: { width: '50px', height: '20px', position: 'absolute', left: '-30px', top: '-20px' },
 			frame: { border: '10px solid #C2CFF1', borderRadius: '10px', '-moz-border-radius': '10px', '-webkit-border-radius': '10px' },
 			tweet: { padding: '5px 10px', clear: 'left' },
 			img:   { float: 'left', margin: '5px', width: '48px', height: '48px' },
@@ -171,7 +177,7 @@
 				
 		if ( isNaN(day_diff) || day_diff < 0 || day_diff >= 31 )
 			return;
-		return day_diff == 0 && (
+		var v = day_diff == 0 && (
 				diff < 60 && "just now" ||
 				diff < 120 && "1 minute ago" ||
 				diff < 3600 && Math.floor( diff / 60 ) + " minutes ago" ||
@@ -180,6 +186,9 @@
 			day_diff == 1 && "Yesterday" ||
 			day_diff < 7 && day_diff + " days ago" ||
 			day_diff < 31 && Math.ceil( day_diff / 7 ) + " weeks ago";
+		if (!v)
+			window.console && console.log(time);
+		return v ? v : '';
 	}
 
 })(jQuery);
