@@ -2,12 +2,15 @@
  * jQuery Twitter Search Plugin
  * Examples and documentation at: http://jquery.malsup.com/twitter/
  * Copyright (c) 2010 M. Alsup
- * Version: 1.00 (05-APR-2010)
+ * Version: 1.00 (06-APR-2010)
  * Dual licensed under the MIT and GPL licenses:
  * http://www.opensource.org/licenses/mit-license.php
  * http://www.gnu.org/licenses/gpl.html
  * Requires: jQuery v1.3.2 or later
  */
+ 
+ // @todo: refresh button
+ 
 ;(function($) {
 	$.fn.twitterSearch = function(options) {
 		if (typeof options == 'string')
@@ -57,35 +60,47 @@
 			$('<div class="twitterSearchLoading">Loading tweets..</div>').css(opts.css['loading']).appendTo($cont);
 			
 			// grab twitter stream
-			$.getJSON(url, function(json) {
-				if (json.error) {
-					$cont.text(json.error);
-					return;
-				}
-				$cont.empty();
-				// iterate twitter results 
-				$.each(json.results, function(i) {
-					var tweet = opts.formatter(this, opts), $tweet = $(tweet);
-					$tweet.css(opts.css['tweet']);
-					var $img = $tweet.find('.twitterSearchProfileImg').css(opts.css['img']);
-					$tweet.find('.twitterSearchUser').css(opts.css['user']);
-					$tweet.find('.twitterSearchTime').css(opts.css['time']);
-					$tweet.find('a').css(opts.css['a']);
-					$tweet.appendTo($cont);
-					var $text = $tweet.find('.twitterSearchText').css(opts.css['text']);
-					if (opts.avatar) {
-						var w = $img.outerWidth() + parseInt($tweet.css('paddingLeft'));
-						$text.css('paddingLeft', w);
+			$.getJSONP({
+				url: url,
+				timeout: 30000,
+				error: function(xhr, status, e) {
+					failWhale(e);
+				},
+				success: function(json) {
+					if (json.error) {
+						failWhale(json.error);
+						return;
 					}
-				});
-				
-				if (json.results.length < 2)
-					return;
+					$cont.empty();
+					// iterate twitter results 
+					$.each(json.results, function(i) {
+						var tweet = opts.formatter(this, opts), $tweet = $(tweet);
+						$tweet.css(opts.css['tweet']);
+						var $img = $tweet.find('.twitterSearchProfileImg').css(opts.css['img']);
+						$tweet.find('.twitterSearchUser').css(opts.css['user']);
+						$tweet.find('.twitterSearchTime').css(opts.css['time']);
+						$tweet.find('a').css(opts.css['a']);
+						$tweet.appendTo($cont);
+						var $text = $tweet.find('.twitterSearchText').css(opts.css['text']);
+						if (opts.avatar) {
+							var w = $img.outerWidth() + parseInt($tweet.css('paddingLeft'));
+							$text.css('paddingLeft', w);
+						}
+					});
+					
+					if (json.results.length < 2)
+						return;
 
-				// stage first animation
-				setTimeout(go, opts.timeout);
+					// stage first animation
+					setTimeout(go, opts.timeout);
+				}
 			});
 
+			function failWhale(msg) {
+				var $fail = $('<div class="twitterSearchFail">' + msg + '</div>').css(opts.css['fail']);
+				$cont.empty().append($fail);
+			};
+			
 			function go() {
 				if (cont.twitterSearchPause) {
 					setTimeout(go, 500);
@@ -152,9 +167,10 @@
 			a:     { textDecoration: 'none', color: '#3B5998' },
 			bird:  { width: '50px', height: '20px', position: 'absolute', left: '-30px', top: '-20px', border: 'none' },
 			container: { overflow: 'hidden', backgroundColor: '#eee', height: '100%' },
+			fail:  { background: '#6cc5c3 url(http://cloud.github.com/downloads/malsup/twitter/failwhale.png) no-repeat 50% 50%', height: '100%', padding: '10px' },
 			frame: { border: '10px solid #C2CFF1', borderRadius: '10px', '-moz-border-radius': '10px', '-webkit-border-radius': '10px' },
 			tweet: { padding: '5px 10px', clear: 'left' },
-			img:   { float: 'left', margin: '5px', width: '48px', height: '48px' },
+			img:   { 'float': 'left', margin: '5px', width: '48px', height: '48px' },
 			loading: { padding: '20px', textAlign: 'center', color: '#888' },
 			text:  {},
 			time:  { fontSize: 'smaller', color: '#888' },
@@ -163,6 +179,48 @@
 			user:  { fontWeight: 'bold' }
 		}
 	};
+
+    // fn to handle jsonp with timeouts and errors
+    // hat tip to Ricardo Tomasi for the timeout logic
+    $.getJSONP = function(s) {
+        s.dataType = 'jsonp';
+        $.ajax(s);
+
+        // figure out what the callback fn is
+        var $script = $(document.getElementsByTagName('head')[0].firstChild);
+        var url = $script.attr('src') || '';
+        var cb = (url.match(/callback=(\w+)/)||[])[1];
+        if (!cb)
+            return; // bail
+        var t = 0, cbFn = window[cb];
+
+        $script[0].onerror = function(e) {
+            $script.remove();
+            handleError(s, {}, "error", e);
+            clearTimeout(t);
+        };
+
+        if (!s.timeout)
+            return;
+
+        window[cb] = function(json) {
+            clearTimeout(t);
+            cbFn(json);
+            cbFn = null;
+        };
+
+        t = setTimeout(function() {
+            $script.remove();
+            handleError(s, {}, "timeout");
+            if (cbFn)
+                window[cb] = function(){};
+        }, s.timeout);
+        
+        function handleError(s, o, msg, e) {
+            // support jquery versions before and after 1.4.3
+            ($.ajax.handleError || $.handleError)(s, o, msg, e);
+        }
+    };
 	
 	/*
 	 * JavaScript Pretty Date
