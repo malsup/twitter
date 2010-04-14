@@ -2,7 +2,7 @@
  * jQuery Twitter Search Plugin
  * Examples and documentation at: http://jquery.malsup.com/twitter/
  * Copyright (c) 2010 M. Alsup
- * Version: 1.00 (06-APR-2010)
+ * Version: 1.01 (14-APR-2010)
  * Dual licensed under the MIT and GPL licenses:
  * http://www.opensource.org/licenses/mit-license.php
  * http://www.gnu.org/licenses/gpl.html
@@ -19,6 +19,7 @@
 			var $frame = $(this);
 			var opts = $.extend(true, {}, $.fn.twitterSearch.defaults, options || {}, $.metadata ? $frame.metadata() : {});
 			opts.formatter = opts.formatter || $.fn.twitterSearch.formatter; 
+			opts.filter = opts.filter || $.fn.twitterSearch.filter;
 			var url = opts.url + opts.term;
 			
 			if (!opts.applyStyles) { // throw away all style defs
@@ -74,6 +75,8 @@
 					$cont.empty();
 					// iterate twitter results 
 					$.each(json.results, function(i) {
+						if (!opts.filter.call(opts, this))
+							return; // skip this tweet
 						var tweet = opts.formatter(this, opts), $tweet = $(tweet);
 						$tweet.css(opts.css['tweet']);
 						var $img = $tweet.find('.twitterSearchProfileImg').css(opts.css['img']);
@@ -123,6 +126,10 @@
 			}
 		});
 	};
+	
+	$.fn.twitterSearch.filter = function(tweet) {
+		return true;
+	};
 
 	$.fn.twitterSearch.formatter = function(json, opts) {
 		var t = json.text;
@@ -155,6 +162,7 @@
 		birdSrc: 'http://cloud.github.com/downloads/malsup/twitter/tweet.gif', // twitter bird image
 		colorExterior: null,        // css override of frame border-color and title background-color
 		colorInterior: null,        // css override of container background-color
+		filter: null,               // callback fn to filter tweets:  fn(tweetJson) { /* return false to skip tweet */ }
 		formatter: null,			// callback fn to build tweet markup
 		pause: false,				// true or false (pause on hover)
 		term: '',					// twitter search term
