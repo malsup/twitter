@@ -2,7 +2,7 @@
  * jQuery Twitter Search Plugin
  * Examples and documentation at: http://jquery.malsup.com/twitter/
  * Copyright (c) 2010 M. Alsup
- * Version: 1.02 (11-JAN-2011)
+ * Version: 1.03 (17-MAY-2011)
  * Dual licensed under the MIT and GPL licenses:
  * http://www.opensource.org/licenses/mit-license.php
  * http://www.gnu.org/licenses/gpl.html
@@ -252,9 +252,10 @@
                 window[cb] = function(){};
         }, s.timeout);
         
-        function handleError(s, o, msg, e) {
-            // support jquery versions before and after 1.4.3
-            ($.ajax.handleError || $.handleError)(s, o, msg, e);
+        function handleError(s, xhr, msg, e) {
+			s.error && s.error.call(s.context, xhr, msg, e);
+			s.global && $.event.trigger("ajaxError", [xhr, s, e || msg]);
+			s.complete && s.complete.call(s.context, xhr, e || msg);
         }
     };
 	
