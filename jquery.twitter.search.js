@@ -2,7 +2,7 @@
  * jQuery Twitter Search Plugin
  * Examples and documentation at: http://jquery.malsup.com/twitter/
  * Copyright (c) 2010 M. Alsup
- * Version: 1.03 (17-MAY-2011)
+ * Version: 1.04 (15-SEP-2011)
  * Dual licensed under the MIT and GPL licenses:
  * http://www.opensource.org/licenses/mit-license.php
  * http://www.gnu.org/licenses/gpl.html
@@ -167,7 +167,7 @@
 		str = '<div class="twitterSearchTweet">';
 		if (opts.avatar)
 			str += '<img class="twitterSearchProfileImg" src="' + json.profile_image_url + '" />';
-		str += '<div><span class="twitterSearchUser"><a href="http://www.twitter.com/'+ json.from_user+'/status/'+ json.id +'">' 
+		str += '<div><span class="twitterSearchUser"><a href="http://www.twitter.com/'+ json.from_user+'/status/'+ json.id_str +'">' 
 		  + json.from_user + '</a></span>';
 		pretty = prettyDate(json.created_at);
 		if (opts.time && pretty)
